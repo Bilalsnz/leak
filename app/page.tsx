@@ -4,7 +4,8 @@ import { FormEvent, useMemo, useState } from "react";
 
 type Analysis = {
   txid: string; network: "mainnet" | "testnet"; transparentInCount: number | null; transparentOutCount: number | null;
-  transparentAddresses: string[]; transparentValuesVisible: boolean; rawNotes: string[]; explorerUrl: string;
+  transparentAddresses: string[]; transparentOutputAddresses?: string[]; transparentOutputDetails?: Array<{ address: string | null; amountZec: number | null }>;
+  transparentValuesVisible: boolean; transactionType?: string | null; rawNotes: string[]; explorerUrl: string;
   source: string; verdict: "PARTIAL_EXPOSURE" | "LOW_PUBLIC_EXPOSURE" | "ERROR"; flags?: string[];
   fetchedAt?: string; error?: string;
 };
@@ -30,7 +31,9 @@ export default function Home() {
       "transparent addresses: " + (analysis.transparentAddresses.length ? analysis.transparentAddresses.slice(0, 8).join(", ") : "none identified in fetched public fields"),
       "transparent inputs: " + (analysis.transparentInCount === null ? "unknown" : analysis.transparentInCount),
       "transparent outputs: " + (analysis.transparentOutCount === null ? "unknown" : analysis.transparentOutCount),
+      "transaction type: " + (analysis.transactionType ?? "not provided by indexer"),
       "transparent output values visible: " + (analysis.transparentValuesVisible ? "yes" : "not identified"),
+      "transparent output details: " + ((analysis.transparentOutputDetails ?? []).length ? analysis.transparentOutputDetails!.map((item) => [item.address ?? "address not identified", item.amountZec === null ? "amount not safely normalized" : item.amountZec.toFixed(8) + " ZEC"].join(" | ")).join("; ") : "not provided"),
       "source: " + analysis.source,
       "explorer: " + analysis.explorerUrl,
       "generated: " + (analysis.fetchedAt ?? new Date().toISOString()),
