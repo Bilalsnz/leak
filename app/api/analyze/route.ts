@@ -238,7 +238,7 @@ async function enrichTransactionType(result: TxResult): Promise<TxResult> {
             isObject(item) &&
             transparentAddress(item.address) &&
             typeof item.value === "string" &&
-            /^\\d+$/.test(item.value)
+            /^\d+$/.test(item.value)
           );
         const shieldedFlagsExplicitlyFalse = [
           zecTx?.hasSapling,
@@ -251,7 +251,7 @@ async function enrichTransactionType(result: TxResult): Promise<TxResult> {
           zecTx?.valueBalanceOrchardZat,
           zecTx?.valueBalanceIronwoodZat,
           zecTx?.valueBalanceZat,
-        ].every((value) => value !== null && value !== undefined && /^-?\\d+$/.test(String(value)) && Number(value) === 0);
+        ].every((value) => value !== null && value !== undefined && /^-?\d+$/.test(String(value)) && Number(value) === 0);
         const shieldedActivityCountsExplicitlyZero = [
           zecTx?.saplingSpendCount,
           zecTx?.saplingOutputCount,
