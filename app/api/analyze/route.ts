@@ -173,8 +173,8 @@ function explicitTransactionTypeOf(tx: any): string | null {
   if (!value) return null;
   const normalized = String(value).trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
   // Do not surface arbitrary strings as a transaction classification.
-  const known = /^(transparent|shielded|mixed|shielding(?:\\s*\\([tz]\\s*[tz]\\))?|deshielding(?:\\s*\\([tz]\\s*[tz]\\))?|t to t|t to z|z to t|z to z|coinbase|sprout migration|orchard migration)$/i;
-  return known.test(normalized) ? normalized : null;
+  const known = new Set(["transparent", "shielded", "mixed", "shielding", "deshielding", "shielding (t z)", "shielding (t to z)", "deshielding (z t)", "deshielding (z to t)", "t to t", "t to z", "z to t", "z to z", "coinbase", "sprout migration", "orchard migration"]);
+  return known.has(normalized.toLowerCase()) ? normalized : null;
 }
 async function enrichTransactionType(result: TxResult): Promise<TxResult> {
   if (result.transactionType || result.source.startsWith("CipherScan")) return result;
