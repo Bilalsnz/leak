@@ -10,6 +10,7 @@ type TxResult = {
   transparentInCount: number | null;
   transparentOutCount: number | null;
   transparentAddresses: string[];
+  transparentOutputAddresses: string[];
   transparentValuesVisible: boolean;
   rawNotes: string[];
   explorerUrl: string;
@@ -51,9 +52,7 @@ function collectNestedAddresses(value: any, out = new Set<string>(), depth = 0):
   if (direct) out.add(direct);
   if (Array.isArray(value)) value.slice(0, 500).forEach((item) => collectNestedAddresses(item, out, depth + 1));
   else if (isObject(value)) {
-    for (const [key, child] of Object.entries(value)) {
-      if (/address|recipient|scriptpubkey/i.test(key)) collectNestedAddresses(child, out, depth + 1);
-    }
+    for (const child of Object.values(value)) collectNestedAddresses(child, out, depth + 1);
   }
   return out;
 }
@@ -82,22 +81,17 @@ function normalize(body: any, txid: string, network: "mainnet" | "testnet", sour
   const outList = explicitOut ?? outputs;
 
   const addresses = collectNestedAddresses(tx);
-  const transparentAddresses = [...addresses].filter((address) => network === "testnet" ? /^(tm|t2)/.test(address) : /^(t1|t3)/.test(address);
+  const belongsToNetwork = (address: string) => network === "testnet" ? /^(tm|t2)/.test(address) : /^(t1|t3)/.test(address);
+  const transparentAddresses = [...addresses].filter(belongsToNetwork);
   const inputAddresses = new Set<string>();
   const outputAddresses = new Set<string>();
-  (inList ?? []).forEach((item) => { const a = addressOf(item); if (a) inputAddresses.add(a); });
-  (outList ?? []).forEach((item) => { const a = addressOf(item); if (a) outputAddresses.add(a); });
+  (inList ?? []).forEach((item) => { const a = addressOf(item); if (a && belongsToNetwork(a)) inputAddresses.add(a); });
+  (outList ?? []).forEach((item) => { const a = addressOf(item); if (a && belongsToNetwork(a)) outputAddresses.add(a); });
 
-  // Counts remain unknown when the provider does not expose the corresponding structure.
-  const transparentInCount = explicitIn ? explicitIn.length : inputs ? inputs.filter((item) => {
-    const a = addressOf(item);
-    return !!a || (isObject(item) && (item.type === "transparent" || item.type === "t"));
-  }).length : null;
-  const transparentOutCount = explicitOut ? explicitOut.length : outputs ? outputs.filter((item) => {
-    const a = addressOf(item);
-    return !!a || (isObject(item) && (item.type === "transparent" || item.type === "t"));
-  }).length : null;
-  const visibleOutValue = (outList ?? []).some((item) => hasVisibleValue(item) && (addressOf(item) || explicitOut !== null));
+  // These provider fields represent the transparent vin/vout arrays. Missing arrays stay unknown.
+  const transparentInCount = explicitIn ? explicitIn.length : inputs ? inputs.length : null;
+  const transparentOutCount = explicitOut ? explicitOut.length : outputs ? outputs.length : null;
+  const visibleOutValue = (outList ?? []).some((item) => hasVisibleValue(item));
   const visibleAddresses = [...new Set([...transparentAddresses, ...inputAddresses, ...outputAddresses])];
   const notes: string[] = [];
   if (!inputs && !explicitIn) notes.push("Provider did not expose a recognizable input list; input exposure is unknown.");
@@ -108,6 +102,7 @@ function normalize(body: any, txid: string, network: "mainnet" | "testnet", sour
   return {
     txid, network, transparentInCount, transparentOutCount,
     transparentAddresses: visibleAddresses,
+    transparentOutputAddresses: [...outputAddresses],
     transparentValuesVisible: visibleOutValue,
     rawNotes: notes,
     explorerUrl: network === "testnet" ? TEST_EXPLORER + txid : MAIN_EXPLORER + txid,
@@ -145,7 +140,7 @@ export async function GET(request: NextRequest) {
       const result = normalize(payload, txid, provider.network, provider.source);
       if (result.transparentInCount === null && result.transparentOutCount === null) throw new Error("Indexer response does not include recognizable input/output fields.");
       const flags: string[] = [];
-      if ((result.transparentOutCount ?? 0) > 0 || result.transparentValuesVisible || result.transparentAddresses.length > 0) flags.push("TRANSPARENT_OUTPUT");
+      if ((result.transparentOutCount ?? 0) > 0 || result.transparentValuesVisible || result.transparentOutputAddresses.length > 0) flags.push("TRANSPARENT_OUTPUT");
       if ((result.transparentInCount ?? 0) > 0) flags.push("TRANSPARENT_INPUT");
       if (result.transparentAddresses.length > 0) flags.push("TRANSPARENT_ADDRESS");
       const hasUnknown = result.transparentInCount === null || result.transparentOutCount === null;
