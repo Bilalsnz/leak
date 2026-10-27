@@ -139,6 +139,40 @@ export default function Home() {
               </div>
             </div>
             <div className="rounded-xl border border-sky-300/15 bg-sky-300/[.035] p-4"><div className="text-[10px] font-bold uppercase tracking-[.2em] text-sky-200">Why this verdict?</div><p className="mt-2 text-sm leading-6 text-slate-300">{partial ? "At least one transparent input/output signal or transparent address was found in the public index response." : "The fetched response exposed recognizable input/output fields, but no transparent inputs or outputs were identified. This is not a proof of perfect privacy."}</p>{analysis.rawNotes.map((note) => <p key={note} className="mt-2 text-xs leading-5 text-slate-500">{note}</p>)}</div>
+            <div className="mt-4 rounded-xl border border-white/10 bg-white/[.02] p-4 sm:p-5">
+              <div className="text-[10px] font-bold uppercase tracking-[.2em] text-sky-200">Transaction details</div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-white/[.07] p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500">Transaction type</div>
+                  <div className="mt-1 break-words text-sm font-semibold text-slate-200">{analysis.transactionType ?? "Not provided by this indexer"}</div>
+                </div>
+                <div className="rounded-lg border border-white/[.07] p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500">Transparent inputs</div>
+                  <div className="mt-1 text-lg font-bold text-slate-200">{analysis.transparentInCount === null ? "Unknown" : analysis.transparentInCount}</div>
+                </div>
+                <div className="rounded-lg border border-white/[.07] p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-500">Transparent outputs</div>
+                  <div className="mt-1 text-lg font-bold text-slate-200">{analysis.transparentOutCount === null ? "Unknown" : analysis.transparentOutCount}</div>
+                </div>
+              </div>
+              <div className="mt-4">
+                <div className="text-xs font-bold text-slate-300">Visible transparent outputs</div>
+                {(analysis.transparentOutputDetails ?? []).length ? (
+                  <div className="mt-2 space-y-2">
+                    {(analysis.transparentOutputDetails ?? []).map((item, index) => (
+                      <div key={item.address ?? index} className="rounded-lg border border-white/[.07] bg-black/10 p-3">
+                        <div className="break-all font-mono text-xs text-slate-200">{item.address ?? "Address not identified"}</div>
+                        <div className="mt-1 text-sm font-bold text-yellow-200">{item.amountZec === null ? "Amount not safely normalized" : item.amountZec.toFixed(8) + " ZEC"}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="mt-2 text-xs leading-5 text-slate-500">The indexer did not provide output details that could be safely displayed.</p>}
+              </div>
+              <div className="mt-4 rounded-lg border border-sky-300/10 bg-sky-300/[.04] p-3">
+                <div className="text-xs font-bold text-sky-200">Privacy implication</div>
+                <p className="mt-1 text-xs leading-5 text-slate-400">A visible transparent address and value can be observed and linked with other public data. This alone does not identify the sender, reveal shielded recipients, or prove that the entire transaction path is exposed.</p>
+              </div>
+            </div>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row">
               <a href={analysis.explorerUrl} target="_blank" rel="noreferrer" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-sky-300 px-4 text-sm font-bold text-[#071019] transition hover:bg-sky-200">Open in explorer <span>↗</span></a>
               {analysis.network === "mainnet" && <a href={"https://blockchair.com/zcash/transaction/" + analysis.txid} target="_blank" rel="noreferrer" className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-sky-300/25 bg-sky-300/[.06] px-4 text-sm font-bold text-sky-100 transition hover:bg-sky-300/[.12]">Blockchair ↗</a>}
