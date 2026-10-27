@@ -11,7 +11,9 @@ type TxResult = {
   transparentOutCount: number | null;
   transparentAddresses: string[];
   transparentOutputAddresses: string[];
+  transparentOutputDetails: Array<{ address: string | null; amountZec: number | null }>;
   transparentValuesVisible: boolean;
+  transactionType: string | null;
   rawNotes: string[];
   explorerUrl: string;
   source: string;
@@ -42,9 +44,45 @@ function addressOf(item: any): string | null {
 }
 function hasVisibleValue(item: any): boolean {
   if (!isObject(item)) return false;
-  return ["value", "amount", "valueZat", "value_zat", "valueZatoshis", "satoshis"].some((key) =>
+  return ["value", "amount", "valueZat", "value_zat", "valueZatoshis", "satoshis", "valueZec", "amountZec", "value_zec", "amount_zec"].some((key) =>
     Object.prototype.hasOwnProperty.call(item, key) && item[key] !== null && item[key] !== undefined
   );
+}
+function outputAmountZec(item: any): number | null {
+  if (!isObject(item)) return null;
+  const zecKeys = ["valueZec", "amountZec", "value_zec", "amount_zec"];
+  for (const key of zecKeys) {
+    const value = item[key];
+    if (value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0) return Number(value);
+  }
+  for (const key of ["valueZat", "value_zat", "valueZatoshis", "satoshis"]) {
+    const value = item[key];
+    if (value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0) return Number(value) / 100000000;
+  }
+  const value = item.amount ?? item.value;
+  if (typeof value === "string") {
+    const match = value.trim().match(/^([0-9]+(?:\\.[0-9]+)?)\\s*(?:ZEC)?$/i);
+    if (!match) return null;
+    const numeric = Number(match[1]);
+    if (!Number.isFinite(numeric) || numeric < 0) return null;
+    // Decimal strings are treated as ZEC. Integer strings from generic value fields are ambiguous.
+    if (match[1].includes(".")) return numeric;
+    return null;
+  }
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0 && !Number.isInteger(value)) return value;
+  // Generic integer "value" fields are ambiguous between zatoshi and ZEC, so do not guess.
+  return null;
+}
+function transactionTypeOf(tx: any): string | null {
+  const candidates = [
+    tx.transactionType, tx.transaction_type, tx.txType, tx.tx_type, tx.type,
+    tx.details?.transactionType, tx.details?.transaction_type,
+    tx.data?.transactionType, tx.data?.transaction_type,
+  ];
+  const value = candidates.find((candidate) => typeof candidate === "string" && candidate.trim().length > 0);
+  if (!value) return null;
+  const normalized = String(value).trim().replace(/[_-]+/g, " ").replace(/\\s+/g, " ");
+  return normalized.length > 80 ? normalized.slice(0, 80) : normalized;
 }
 function collectNestedAddresses(value: any, out = new Set<string>(), depth = 0): Set<string> {
   if (depth > 7 || value == null) return out;
@@ -94,6 +132,11 @@ function normalize(body: any, txid: string, network: "mainnet" | "testnet", sour
   const transparentInCount = explicitIn ? explicitIn.length : inputs ? inputs.length : null;
   const transparentOutCount = explicitOut ? explicitOut.length : outputs ? outputs.length : null;
   const visibleOutValue = (outList ?? []).some((item) => hasVisibleValue(item));
+  const transparentOutputDetails = (outList ?? []).map((item) => ({
+    address: addressOf(item) && belongsToNetwork(addressOf(item) as string) ? addressOf(item) : null,
+    amountZec: outputAmountZec(item),
+  })).filter((item) => item.address !== null || item.amountZec !== null);
+  const transactionType = transactionTypeOf(tx) ?? transactionTypeOf(body);
   const visibleAddresses = [...new Set([...transparentAddresses, ...inputAddresses, ...outputAddresses])];
   const notes: string[] = [];
   if (!inputs && !explicitIn) notes.push("Provider did not expose a recognizable input list; input exposure is unknown.");
@@ -105,7 +148,9 @@ function normalize(body: any, txid: string, network: "mainnet" | "testnet", sour
     txid, network, transparentInCount, transparentOutCount,
     transparentAddresses: visibleAddresses,
     transparentOutputAddresses: [...outputAddresses],
+    transparentOutputDetails,
     transparentValuesVisible: visibleOutValue,
+    transactionType,
     rawNotes: notes,
     explorerUrl: network === "testnet" ? TEST_EXPLORER + txid : MAIN_EXPLORER + txid,
     source,
