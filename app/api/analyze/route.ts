@@ -201,6 +201,30 @@ async function enrichTransactionType(result: TxResult): Promise<TxResult> {
         if (transactionType) {
           return { ...result, transactionType, transactionTypeSource: "ZecBlock (type metadata fallback)" };
         }
+
+        // ZecBlock's response may omit a named transaction-type field. Only derive
+        // Z-to-T deshielding when its bridge metadata says "exit", an Ironwood
+        // shielded component is present, and a transparent t-address output exists.
+        // This is an evidence-based classification, not a generic guess from counts.
+        const zecTx = isObject(body?.data) ? body.data : tx;
+        const bridge = isObject(zecTx?.bridge) ? zecTx.bridge : null;
+        const hasTransparentOutput = Array.isArray(zecTx?.outputs) && zecTx.outputs.some((output: any) =>
+          typeof output?.address === "string" && /^t1[1-9A-HJ-NP-Za-km-z]{20,}$/.test(output.address)
+        );
+        const ironwoodBalance = Number(zecTx?.valueBalanceIronwoodZat ?? 0);
+        if (
+          bridge?.direction === "exit" &&
+          zecTx?.hasIronwood === true &&
+          hasTransparentOutput &&
+          Number.isFinite(ironwoodBalance) &&
+          ironwoodBalance > 0
+        ) {
+          return {
+            ...result,
+            transactionType: "Deshielding (Z-T)",
+            transactionTypeSource: "ZecBlock (derived from bridge, Ironwood, and transparent-output evidence)",
+          };
+        }
       } catch {
         // Optional metadata must never break the primary transaction analysis.
       }
