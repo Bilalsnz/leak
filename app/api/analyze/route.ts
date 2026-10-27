@@ -48,7 +48,7 @@ function hasVisibleValue(item: any): boolean {
     Object.prototype.hasOwnProperty.call(item, key) && item[key] !== null && item[key] !== undefined
   );
 }
-function outputAmountZec(item: any): number | null {
+function outputAmountZec(item: any, source: string): number | null {
   if (!isObject(item)) return null;
   const zecKeys = ["valueZec", "amountZec", "value_zec", "amount_zec"];
   for (const key of zecKeys) {
@@ -60,6 +60,8 @@ function outputAmountZec(item: any): number | null {
     if (value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0) return Number(value) / 100000000;
   }
   const value = item.amount ?? item.value;
+  if (source === "Blockchair" && typeof value === "number" && Number.isInteger(value) && value >= 0) return value / 100000000;
+  if (source === "Blockchair" && typeof value === "string" && /^\\d+$/.test(value)) return Number(value) / 100000000;
   if (typeof value === "string") {
     const match = value.trim().match(/^([0-9]+(?:\\.[0-9]+)?)\\s*(?:ZEC)?$/i);
     if (!match) return null;
@@ -134,7 +136,7 @@ function normalize(body: any, txid: string, network: "mainnet" | "testnet", sour
   const visibleOutValue = (outList ?? []).some((item) => hasVisibleValue(item));
   const transparentOutputDetails = (outList ?? []).map((item) => ({
     address: addressOf(item) && belongsToNetwork(addressOf(item) as string) ? addressOf(item) : null,
-    amountZec: outputAmountZec(item),
+    amountZec: outputAmountZec(item, source),
   })).filter((item) => item.address !== null || item.amountZec !== null);
   const transactionType = transactionTypeOf(tx) ?? transactionTypeOf(body);
   const visibleAddresses = [...new Set([...transparentAddresses, ...inputAddresses, ...outputAddresses])];
