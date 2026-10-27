@@ -27,7 +27,7 @@ export default function Home() {
       "network: " + analysis.network,
       "verdict: " + analysis.verdict,
       "flags: " + ((analysis.flags?.length ? analysis.flags.join(", ") : "none identified")),
-      "transparent addresses: " + (analysis.transparentAddresses.length ? analysis.transparentAddresses.join(", ") : "none identified in fetched public fields"),
+      "transparent addresses: " + (analysis.transparentAddresses.length ? analysis.transparentAddresses.slice(0, 8).join(", ") : "none identified in fetched public fields"),
       "transparent inputs: " + (analysis.transparentInCount === null ? "unknown" : analysis.transparentInCount),
       "transparent outputs: " + (analysis.transparentOutCount === null ? "unknown" : analysis.transparentOutCount),
       "transparent output values visible: " + (analysis.transparentValuesVisible ? "yes" : "not identified"),
@@ -43,7 +43,7 @@ export default function Home() {
     setError(""); setAnalysis(null); setCopied(false);
     const clean = txid.trim();
     if (!/^[a-fA-F0-9]{64}$/.test(clean)) {
-      setError("A transaction ID must contain exactly 64 hexadecimal characters.");
+      setError("ERROR: A transaction ID must contain exactly 64 hexadecimal characters.");
       return;
     }
     setLoading(true);
@@ -103,7 +103,7 @@ export default function Home() {
             </form>
             <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-1 pt-3 text-[10px] text-slate-500"><span>Read-only · No wallet · No login</span><span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-sky-300"/> Mainnet first · testnet fallback</span></div>
           </div>
-          {error && <div role="alert" className="mx-auto mt-4 max-w-2xl rounded-xl border border-red-400/30 bg-red-400/[0.08] px-4 py-3 text-left text-sm text-red-200"><span className="mr-2 font-bold">Unable to analyze</span>{error}</div>}
+          {error && <div role="alert" className="mx-auto mt-4 max-w-2xl rounded-xl border border-red-400/30 bg-red-400/[0.08] px-4 py-3 text-left text-sm text-red-200"><span className="mr-2 font-bold">ERROR · Unable to analyze</span>{error}</div>}
         </section>
 
         {analysis && <section className="mx-auto max-w-5xl animate-[fadeIn_.25s_ease-out]">
