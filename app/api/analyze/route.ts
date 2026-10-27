@@ -58,6 +58,8 @@ function collectNestedAddresses(value: any, out = new Set<string>(), depth = 0):
 }
 function txContainer(body: any): any {
   if (!isObject(body)) return body;
+  // Keep indexer envelopes that already carry input/output arrays, even if they also contain transaction metadata.
+  if (body.inputs || body.outputs || body.vin || body.vout || body.transparentInputs || body.transparentOutputs) return body;
   for (const key of ["data", "transaction", "tx", "result"]) {
     const value = body[key];
     if (isObject(value)) {
