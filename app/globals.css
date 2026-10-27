@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html { background: #071019; }
+body { margin: 0; background: #071019; color: #e9f2f8; font-family: Arial, Helvetica, sans-serif; }
+button, input { font: inherit; }
+::selection { background: rgba(245, 196, 66, .28); }
+.panel { background: linear-gradient(145deg, rgba(16, 31, 44, .96), rgba(10, 22, 33, .96)); border: 1px solid rgba(126, 159, 180, .17); }
+.grid-glow { background-image: linear-gradient(rgba(69, 109, 135, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(69, 109, 135, .055) 1px, transparent 1px); background-size: 34px 34px; mask-image: linear-gradient(to bottom, black, transparent 90%); }
