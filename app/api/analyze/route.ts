@@ -225,6 +225,57 @@ async function enrichTransactionType(result: TxResult): Promise<TxResult> {
             transactionTypeSource: "ZecBlock (derived from bridge, Ironwood, and transparent-output evidence)",
           };
         }
+
+        // Derive T-T only when ZecBlock explicitly provides complete transparent
+        // input/output records and explicitly reports no shielded-pool activity.
+        // Missing flags/balances are not treated as false/zero.
+        const inputs = zecTx?.inputs;
+        const outputs = zecTx?.outputs;
+        const transparentAddress = (value: any) =>
+          typeof value === "string" && /^t[13][1-9A-HJ-NP-Za-km-z]{20,}$/.test(value);
+        const hasCompleteTransparentRecords = (items: any[]) =>
+          items.length > 0 && items.every((item: any) =>
+            isObject(item) &&
+            transparentAddress(item.address) &&
+            typeof item.value === "string" &&
+            /^\d+$/.test(item.value)
+          );
+        const shieldedFlagsExplicitlyFalse = [
+          zecTx?.hasSapling,
+          zecTx?.hasOrchard,
+          zecTx?.hasIronwood,
+          zecTx?.hasSprout,
+        ].every((flag) => flag === false);
+        const shieldedBalancesExplicitlyZero = [
+          zecTx?.valueBalanceSaplingZat,
+          zecTx?.valueBalanceOrchardZat,
+          zecTx?.valueBalanceIronwoodZat,
+          zecTx?.valueBalanceZat,
+        ].every((value) => value !== null && value !== undefined && /^-?\d+$/.test(String(value)) && Number(value) === 0);
+        const shieldedActivityCountsExplicitlyZero = [
+          zecTx?.saplingSpendCount,
+          zecTx?.saplingOutputCount,
+          zecTx?.orchardActions,
+          zecTx?.ironwoodActions,
+        ].every((value) => value !== null && value !== undefined && Number.isFinite(Number(value)) && Number(value) === 0);
+        if (
+          Array.isArray(inputs) &&
+          Array.isArray(outputs) &&
+          hasCompleteTransparentRecords(inputs) &&
+          hasCompleteTransparentRecords(outputs) &&
+          shieldedFlagsExplicitlyFalse &&
+          shieldedBalancesExplicitlyZero &&
+          shieldedActivityCountsExplicitlyZero &&
+          zecTx?.bridge === null &&
+          (zecTx?.stakingAction === null || zecTx?.stakingAction === undefined) &&
+          (zecTx?.zip318 === null || zecTx?.zip318 === undefined)
+        ) {
+          return {
+            ...result,
+            transactionType: "Transparent (T-T)",
+            transactionTypeSource: "ZecBlock (derived from complete transparent inputs/outputs and explicit absence of shielded-pool activity)",
+          };
+        }
       } catch {
         // Optional metadata must never break the primary transaction analysis.
       }
