@@ -5,7 +5,7 @@ import { FormEvent, useMemo, useState } from "react";
 type Analysis = {
   txid: string; network: "mainnet" | "testnet"; transparentInCount: number | null; transparentOutCount: number | null;
   transparentAddresses: string[]; transparentOutputAddresses?: string[]; transparentOutputDetails?: Array<{ address: string | null; amountZec: number | null }>;
-  transparentValuesVisible: boolean; transactionType?: string | null; rawNotes: string[]; explorerUrl: string;
+  transparentValuesVisible: boolean; transactionType?: string | null; transactionTypeSource?: string | null; rawNotes: string[]; explorerUrl: string;
   source: string; verdict: "PARTIAL_EXPOSURE" | "LOW_PUBLIC_EXPOSURE" | "ERROR"; flags?: string[];
   fetchedAt?: string; error?: string;
 };
@@ -32,6 +32,7 @@ export default function Home() {
       "transparent inputs: " + (analysis.transparentInCount === null ? "unknown" : analysis.transparentInCount),
       "transparent outputs: " + (analysis.transparentOutCount === null ? "unknown" : analysis.transparentOutCount),
       "transaction type: " + (analysis.transactionType ?? "not provided by indexer"),
+      "transaction type source: " + (analysis.transactionTypeSource ?? "not available"),
       "transparent output values visible: " + (analysis.transparentValuesVisible ? "yes" : "not identified"),
       "transparent output details: " + ((analysis.transparentOutputDetails ?? []).length ? analysis.transparentOutputDetails!.map((item) => [item.address ?? "address not identified", item.amountZec === null ? "amount not safely normalized" : item.amountZec.toFixed(8) + " ZEC"].join(" | ")).join("; ") : "not provided"),
       "source: " + analysis.source,
@@ -144,7 +145,7 @@ export default function Home() {
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border border-white/[.07] p-3">
                   <div className="text-[10px] uppercase tracking-wider text-slate-500">Transaction type</div>
-                  <div className="mt-1 break-words text-sm font-semibold text-slate-200">{analysis.transactionType ?? "Not provided by this indexer"}</div>
+                  <div className="mt-1 break-words text-sm font-semibold text-slate-200">{analysis.transactionType ?? "Not provided by this indexer"}</div>{analysis.transactionTypeSource && <div className="mt-1 text-[10px] text-slate-500">Source: {analysis.transactionTypeSource}</div>}
                 </div>
                 <div className="rounded-lg border border-white/[.07] p-3">
                   <div className="text-[10px] uppercase tracking-wider text-slate-500">Transparent inputs</div>
