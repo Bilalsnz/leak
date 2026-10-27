@@ -178,6 +178,35 @@ function explicitTransactionTypeOf(tx: any): string | null {
 }
 async function enrichTransactionType(result: TxResult): Promise<TxResult> {
   if (result.transactionType || result.source.startsWith("CipherScan")) return result;
+
+  // Optional server-side enrichment from documented ZecBlock v1 endpoints.
+  // Requests stay server-side and do not depend on browser query parameters.
+  // This fallback never changes the primary provider's counts, addresses, amounts, or verdict.
+  if (result.network === "mainnet") {
+    const urls = [
+      "https://api.zecblock.com/v1/transactions/" + result.txid,
+      "https://api.zecblock.com/v1/transactions/" + result.txid + "/verbose",
+    ];
+    for (const url of urls) {
+      try {
+        const body = await fetchJson(url, 4000);
+        const tx = txContainer(body);
+        if (!isObject(tx)) continue;
+        const reportedId = [
+          tx.txid, tx.hash, tx.txId, tx.transactionId,
+          body?.txid, body?.hash, body?.data?.txid, body?.data?.hash,
+        ].find((value) => typeof value === "string");
+        if (reportedId && reportedId.toLowerCase() !== result.txid.toLowerCase()) continue;
+        const transactionType = explicitTransactionTypeOf(tx) ?? explicitTransactionTypeOf(body);
+        if (transactionType) {
+          return { ...result, transactionType, transactionTypeSource: "ZecBlock (type metadata fallback)" };
+        }
+      } catch {
+        // Optional metadata must never break the primary transaction analysis.
+      }
+    }
+  }
+
   const base = result.network === "testnet"
     ? "https://api.testnet.cipherscan.app/api/tx/"
     : "https://api.mainnet.cipherscan.app/api/tx/";
