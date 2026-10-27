@@ -14,6 +14,7 @@ type TxResult = {
   transparentOutputDetails: Array<{ address: string | null; amountZec: number | null }>;
   transparentValuesVisible: boolean;
   transactionType: string | null;
+  transactionTypeSource: string | null;
   rawNotes: string[];
   explorerUrl: string;
   source: string;
@@ -153,10 +154,47 @@ function normalize(body: any, txid: string, network: "mainnet" | "testnet", sour
     transparentOutputDetails,
     transparentValuesVisible: visibleOutValue,
     transactionType,
+    transactionTypeSource: transactionType ? source : null,
     rawNotes: notes,
     explorerUrl: network === "testnet" ? TEST_EXPLORER + txid : MAIN_EXPLORER + txid,
     source,
   };
+}
+function explicitTransactionTypeOf(tx: any): string | null {
+  // Only accept named type fields here. Generic "type" can describe an unrelated
+  // nested object or protocol field, so it is intentionally excluded for fallback enrichment.
+  const candidates = [
+    tx?.transactionType, tx?.transaction_type, tx?.txType, tx?.tx_type,
+    tx?.details?.transactionType, tx?.details?.transaction_type,
+    tx?.data?.transactionType, tx?.data?.transaction_type,
+    tx?.result?.transactionType, tx?.result?.transaction_type,
+  ];
+  const value = candidates.find((candidate) => typeof candidate === "string" && candidate.trim().length > 0);
+  if (!value) return null;
+  const normalized = String(value).trim().replace(/[_-]+/g, " ").replace(/\\s+/g, " ");
+  // Do not surface arbitrary strings as a transaction classification.
+  const known = /^(transparent|shielded|mixed|shielding|deshielding|t to t|t to z|z to t|z to z|coinbase|sprout migration|orchard migration)$/i;
+  return known.test(normalized) ? normalized : null;
+}
+async function enrichTransactionType(result: TxResult): Promise<TxResult> {
+  if (result.transactionType) return result;
+  const base = result.network === "testnet"
+    ? "https://api.testnet.cipherscan.app/api/tx/"
+    : "https://api.mainnet.cipherscan.app/api/tx/";
+  try {
+    const body = await fetchJson(base + result.txid);
+    const tx = txContainer(body);
+    if (!isObject(tx)) return result;
+    const reportedId = [tx.txid, tx.hash, tx.txId, tx.transactionId, body?.txid, body?.hash]
+      .find((value) => typeof value === "string");
+    if (reportedId && reportedId.toLowerCase() !== result.txid.toLowerCase()) return result;
+    const transactionType = explicitTransactionTypeOf(tx) ?? explicitTransactionTypeOf(body);
+    if (!transactionType) return result;
+    return { ...result, transactionType, transactionTypeSource: "CipherScan (type metadata fallback)" };
+  } catch {
+    // Type enrichment is optional; a provider outage must not break the main analysis.
+    return result;
+  }
 }
 async function fetchJson(url: string): Promise<any> {
   const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "LeakCheck/1.0" }, cache: "no-store", signal: AbortSignal.timeout(9000) });
@@ -186,7 +224,8 @@ export async function GET(request: NextRequest) {
       // Blockchair's dashboard wraps the record under data[txid].
       const payload = provider.source === "Blockchair" ? body.data?.[txid] : body;
       if (!payload) throw new Error("Transaction was not found in this indexer.");
-      const result = normalize(payload, txid, provider.network, provider.source);
+      let result = normalize(payload, txid, provider.network, provider.source);
+      result = await enrichTransactionType(result);
       if (result.transparentInCount === null && result.transparentOutCount === null) throw new Error("Indexer response does not include recognizable input/output fields.");
       const flags: string[] = [];
       if ((result.transparentOutCount ?? 0) > 0 || result.transparentValuesVisible || result.transparentOutputAddresses.length > 0) flags.push("TRANSPARENT_OUTPUT");
