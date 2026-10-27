@@ -61,9 +61,9 @@ function outputAmountZec(item: any, source: string): number | null {
   }
   const value = item.amount ?? item.value;
   if (source === "Blockchair" && typeof value === "number" && Number.isInteger(value) && value >= 0) return value / 100000000;
-  if (source === "Blockchair" && typeof value === "string" && /^\\d+$/.test(value)) return Number(value) / 100000000;
+  if (source === "Blockchair" && typeof value === "string" && /^\d+$/.test(value)) return Number(value) / 100000000;
   if (typeof value === "string") {
-    const match = value.trim().match(/^([0-9]+(?:\\.[0-9]+)?)\\s*(?:ZEC)?$/i);
+    const match = value.trim().match(/^([0-9]+(?:\.[0-9]+)?)\s*(?:ZEC)?$/i);
     if (!match) return null;
     const numeric = Number(match[1]);
     if (!Number.isFinite(numeric) || numeric < 0) return null;
@@ -83,7 +83,7 @@ function transactionTypeOf(tx: any): string | null {
   ];
   const value = candidates.find((candidate) => typeof candidate === "string" && candidate.trim().length > 0);
   if (!value) return null;
-  const normalized = String(value).trim().replace(/[_-]+/g, " ").replace(/\\s+/g, " ");
+  const normalized = String(value).trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
   return normalized.length > 80 ? normalized.slice(0, 80) : normalized;
 }
 function collectNestedAddresses(value: any, out = new Set<string>(), depth = 0): Set<string> {
