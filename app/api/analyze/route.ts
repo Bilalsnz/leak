@@ -164,16 +164,16 @@ function explicitTransactionTypeOf(tx: any): string | null {
   // Only accept named type fields here. Generic "type" can describe an unrelated
   // nested object or protocol field, so it is intentionally excluded for fallback enrichment.
   const candidates = [
-    tx?.transactionType, tx?.transaction_type, tx?.txType, tx?.tx_type,
-    tx?.details?.transactionType, tx?.details?.transaction_type,
-    tx?.data?.transactionType, tx?.data?.transaction_type,
-    tx?.result?.transactionType, tx?.result?.transaction_type,
+    tx?.transactionType, tx?.transaction_type, tx?.txType, tx?.tx_type, tx?.type,
+    tx?.details?.transactionType, tx?.details?.transaction_type, tx?.details?.type,
+    tx?.data?.transactionType, tx?.data?.transaction_type, tx?.data?.type,
+    tx?.result?.transactionType, tx?.result?.transaction_type, tx?.result?.type,
   ];
   const value = candidates.find((candidate) => typeof candidate === "string" && candidate.trim().length > 0);
   if (!value) return null;
   const normalized = String(value).trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
   // Do not surface arbitrary strings as a transaction classification.
-  const known = /^(transparent|shielded|mixed|shielding|deshielding|t to t|t to z|z to t|z to z|coinbase|sprout migration|orchard migration)$/i;
+  const known = /^(transparent|shielded|mixed|shielding(?:\\s*\\([tz]\\s*[tz]\\))?|deshielding(?:\\s*\\([tz]\\s*[tz]\\))?|t to t|t to z|z to t|z to z|coinbase|sprout migration|orchard migration)$/i;
   return known.test(normalized) ? normalized : null;
 }
 async function enrichTransactionType(result: TxResult): Promise<TxResult> {
