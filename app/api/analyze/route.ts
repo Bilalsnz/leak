@@ -177,12 +177,12 @@ function explicitTransactionTypeOf(tx: any): string | null {
   return known.test(normalized) ? normalized : null;
 }
 async function enrichTransactionType(result: TxResult): Promise<TxResult> {
-  if (result.transactionType) return result;
+  if (result.transactionType || result.source.startsWith("CipherScan")) return result;
   const base = result.network === "testnet"
     ? "https://api.testnet.cipherscan.app/api/tx/"
     : "https://api.mainnet.cipherscan.app/api/tx/";
   try {
-    const body = await fetchJson(base + result.txid);
+    const body = await fetchJson(base + result.txid, 4000);
     const tx = txContainer(body);
     if (!isObject(tx)) return result;
     const reportedId = [tx.txid, tx.hash, tx.txId, tx.transactionId, body?.txid, body?.hash]
@@ -196,8 +196,8 @@ async function enrichTransactionType(result: TxResult): Promise<TxResult> {
     return result;
   }
 }
-async function fetchJson(url: string): Promise<any> {
-  const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "LeakCheck/1.0" }, cache: "no-store", signal: AbortSignal.timeout(9000) });
+async function fetchJson(url: string, timeoutMs = 9000): Promise<any> {
+  const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "LeakCheck/1.0" }, cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
   if (!response.ok) throw new Error("Indexer returned HTTP " + response.status);
   return response.json();
 }
