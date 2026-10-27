@@ -171,7 +171,7 @@ function explicitTransactionTypeOf(tx: any): string | null {
   ];
   const value = candidates.find((candidate) => typeof candidate === "string" && candidate.trim().length > 0);
   if (!value) return null;
-  const normalized = String(value).trim().replace(/[_-]+/g, " ").replace(/\\s+/g, " ");
+  const normalized = String(value).trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
   // Do not surface arbitrary strings as a transaction classification.
   const known = /^(transparent|shielded|mixed|shielding|deshielding|t to t|t to z|z to t|z to z|coinbase|sprout migration|orchard migration)$/i;
   return known.test(normalized) ? normalized : null;
